@@ -352,6 +352,7 @@ function AIPanel({ t, currentFile, currentCode, onClose }) {
       setMsgs(prev => [...prev, { role:'ai', text:reply }]);
     } catch (e) {
   setMsgs(prev => [...prev, { role:'ai', text:'⚠️ Ошибка: ' + e.message }]);
+    }
     setLoading(false);
   };
 
