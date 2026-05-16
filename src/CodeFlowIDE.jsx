@@ -487,6 +487,8 @@ export default function CodeFlowIDE() {
   const [suggestions, setSuggestions] = useState([]);
   const [acPos, setAcPos] = useState({ top:0, left:0 });
   const textareaRef = useRef(null);
+  const scrollRef = useRef(null);
+  const lineNumRef = useRef(null);
 
   const openFile = name => {
     setActiveFile(name); setCode(files[name]);
@@ -759,14 +761,14 @@ export default function CodeFlowIDE() {
         <div style={{ flex:1,display:'flex',flexDirection:'column',overflow:'hidden',minWidth:0 }}>
           <div style={{ flex:1,display:'flex',overflow:'hidden',position:'relative' }}>
             {/* Line numbers */}
-            <div style={{ background:t.bg,padding:'12px 6px 12px 4px',textAlign:'right',fontSize:11,lineHeight:'20px',color:t.lineNum,userSelect:'none',flexShrink:0,minWidth:36,overflow:'hidden' }}>
+            <div ref={lineNumRef} style={{ background:t.bg,padding:'12px 6px 12px 4px',textAlign:'right',fontSize:11,lineHeight:'20px',color:t.lineNum,userSelect:'none',flexShrink:0,minWidth:36,overflow:'hidden' }}>
               {code.split('\n').map((_,i) => (
                 <div key={i} style={{ paddingRight:6,color:i+1===cursor.line?t.accent:t.lineNum }}>{i+1}</div>
               ))}
             </div>
             {/* Code area */}
             <div style={{ flex:1,position:'relative',overflow:'hidden',minWidth:0 }}>
-              <div style={{ position:'absolute',inset:0,overflow:'auto',WebkitOverflowScrolling:'touch' }}>
+              <div ref={scrollRef} onScroll={e=>{ if(lineNumRef.current) lineNumRef.current.scrollTop = e.target.scrollTop; }} style={{ position:'absolute',inset:0,overflow:'auto',WebkitOverflowScrolling:'touch' }}>
                 <div style={{ position:'relative',minWidth:'max-content',minHeight:'100%' }}>
                   <div style={{ padding:'12px 16px 12px 0',fontSize:12,lineHeight:'20px',fontFamily:'inherit',whiteSpace:'pre',color:t.text,pointerEvents:'none',zIndex:1,minWidth:'max-content' }}
                     dangerouslySetInnerHTML={{ __html:highlight(code,activeFile,t) }}/>
