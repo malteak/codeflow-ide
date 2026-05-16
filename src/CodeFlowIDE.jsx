@@ -563,7 +563,10 @@ export default function CodeFlowIDE() {
       const { name, content: fileContent, handle } = result;
       setFiles(prev=>({...prev,[name]:fileContent}));
       if (handle) setFileHandles(prev=>({...prev,[name]:handle}));
-      openFile(name);
+      setActiveFile(name);
+      setCode(fileContent);
+      setOpenTabs(prev => prev.includes(name) ? prev : [...prev, name]);
+      setSuggestions([]);
     } catch(e) {
       console.error('Open file error:', e);
     }
