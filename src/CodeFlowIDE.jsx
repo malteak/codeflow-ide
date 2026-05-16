@@ -765,16 +765,20 @@ export default function CodeFlowIDE() {
               ))}
             </div>
             {/* Code area */}
-            <div style={{ flex:1,position:'relative',overflow:'auto',minWidth:0 }}>
-              <div style={{ position:'absolute',inset:0,padding:'12px 16px 12px 0',fontSize:12,lineHeight:'20px',fontFamily:'inherit',whiteSpace:'pre',color:t.text,pointerEvents:'none',zIndex:1,minWidth:'max-content' }}
-                dangerouslySetInnerHTML={{ __html:highlight(code,activeFile,t) }}/>
-              <textarea ref={textareaRef} value={code}
-                onChange={e=>updateCode(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onClick={()=>setSuggestions([])}
-                spellCheck={false} autoCorrect="off" autoCapitalize="off"
-                style={{ position:'absolute',inset:0,padding:'12px 16px 12px 0',fontSize:12,lineHeight:'20px',fontFamily:'inherit',background:'transparent',color:'transparent',caretColor:t.text,border:'none',outline:'none',zIndex:2,width:'100%',whiteSpace:'pre',overflow:'auto',minWidth:'max-content' }}
-              />
+            <div style={{ flex:1,position:'relative',overflow:'hidden',minWidth:0 }}>
+              <div style={{ position:'absolute',inset:0,overflow:'auto',WebkitOverflowScrolling:'touch' }}>
+                <div style={{ position:'relative',minWidth:'max-content',minHeight:'100%' }}>
+                  <div style={{ padding:'12px 16px 12px 0',fontSize:12,lineHeight:'20px',fontFamily:'inherit',whiteSpace:'pre',color:t.text,pointerEvents:'none',zIndex:1,minWidth:'max-content' }}
+                    dangerouslySetInnerHTML={{ __html:highlight(code,activeFile,t) }}/>
+                  <textarea ref={textareaRef} value={code}
+                    onChange={e=>updateCode(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onClick={()=>setSuggestions([])}
+                    spellCheck={false} autoCorrect="off" autoCapitalize="off"
+                    style={{ position:'absolute',inset:0,padding:'12px 16px 12px 0',fontSize:12,lineHeight:'20px',fontFamily:'inherit',background:'transparent',color:'transparent',caretColor:t.text,border:'none',outline:'none',zIndex:2,width:'100%',height:'100%',whiteSpace:'pre',overflow:'hidden',resize:'none',minWidth:'max-content' }}
+                  />
+                </div>
+              </div>
               <AutocompleteDropdown suggestions={suggestions} onSelect={applyCompletion} position={acPos} t={t}/>
             </div>
           </div>
