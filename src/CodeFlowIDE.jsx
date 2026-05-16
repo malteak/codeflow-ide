@@ -88,30 +88,31 @@ function getCompletions(code, cursorPos, filename) {
 
 async function openFileFromDisk() {
   return new Promise(resolve => {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = '.js,.jsx,.ts,.tsx,.py,.css,.html,.json,.md,.txt,.csv,.xml,.yaml,.yml,.sh,.rb,.go,.rs,.cpp,.c,.h';
-    input.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0;';
-    document.body.appendChild(input);
-    let resolved = false;
-    input.onchange = async () => {
-      if (resolved) return;
-      resolved = true;
-      const file = input.files[0];
-      document.body.removeChild(input);
-      if (!file) return resolve(null);
-      try {
-        const content = await file.text();
-        resolve({ name: file.name, content, handle: null });
-      } catch(e) { resolve(null); }
-    };
-    input.addEventListener('cancel', () => {
-      if (resolved) return;
-      resolved = true;
-      document.body.removeChild(input);
-      resolve(null);
-    });
-    setTimeout(() => input.click(), 50);
+    try {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.js,.jsx,.ts,.tsx,.py,.css,.html,.json,.md,.txt,.csv,.xml,.yaml,.yml,.sh,.rb,.go,.rs,.cpp,.c,.h';
+      input.style.cssText = 'position:fixed;top:-9999px;left:-9999px;width:1px;height:1px;opacity:0;';
+      document.body.appendChild(input);
+      let resolved = false;
+      const cleanup = () => {
+        try { if (document.body.contains(input)) document.body.removeChild(input); } catch(e) {}
+      };
+      input.onchange = async (e) => {
+        if (resolved) return;
+        resolved = true;
+        try {
+          const file = e.target.files && e.target.files[0];
+          cleanup();
+          if (!file) return resolve(null);
+          const text = await file.text();
+          resolve({ name: file.name, content: text, handle: null });
+        } catch(err) { cleanup(); resolve(null); }
+      };
+      // fallback timeout — if nothing happens in 5 min, resolve null
+      setTimeout(() => { if (!resolved) { resolved = true; cleanup(); resolve(null); } }, 300000);
+      input.click();
+    } catch(e) { resolve(null); }
   });
 }
 
@@ -556,12 +557,16 @@ export default function CodeFlowIDE() {
   };
 
   const handleOpenFile = async () => {
-    const result = await openFileFromDisk();
-    if (!result) return;
-    const { name, content, handle } = result;
-    setFiles(prev=>({...prev,[name]:content}));
-    if (handle) setFileHandles(prev=>({...prev,[name]:handle}));
-    openFile(name);
+    try {
+      const result = await openFileFromDisk();
+      if (!result) return;
+      const { name, content: fileContent, handle } = result;
+      setFiles(prev=>({...prev,[name]:fileContent}));
+      if (handle) setFileHandles(prev=>({...prev,[name]:handle}));
+      openFile(name);
+    } catch(e) {
+      console.error('Open file error:', e);
+    }
   };
 
   const createNewFile = () => {
