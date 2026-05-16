@@ -87,60 +87,44 @@ function getCompletions(code, cursorPos, filename) {
 }
 
 async function openFileFromDisk() {
-  if ('showOpenFilePicker' in window) {
-    try {
-      const [handle] = await window.showOpenFilePicker({
-        types: [{ description: 'Code files', accept: { 'text/*': ['.js','.jsx','.ts','.tsx','.py','.css','.html','.json','.md','.txt'] } }]
-      });
-      const file = await handle.getFile();
-      const content = await file.text();
-      return { name: file.name, content, handle };
-    } catch(e) { return null; }
-  } else {
-    return new Promise(resolve => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.js,.jsx,.ts,.tsx,.py,.css,.html,.json,.md,.txt';
-      input.onchange = async () => {
-        const file = input.files[0];
-        if (!file) return resolve(null);
+  return new Promise(resolve => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.js,.jsx,.ts,.tsx,.py,.css,.html,.json,.md,.txt,.csv,.xml,.yaml,.yml,.sh,.rb,.go,.rs,.cpp,.c,.h';
+    input.style.cssText = 'position:fixed;top:-1000px;left:-1000px;opacity:0;';
+    document.body.appendChild(input);
+    let resolved = false;
+    input.onchange = async () => {
+      if (resolved) return;
+      resolved = true;
+      const file = input.files[0];
+      document.body.removeChild(input);
+      if (!file) return resolve(null);
+      try {
         const content = await file.text();
         resolve({ name: file.name, content, handle: null });
-      };
-      input.click();
+      } catch(e) { resolve(null); }
+    };
+    input.addEventListener('cancel', () => {
+      if (resolved) return;
+      resolved = true;
+      document.body.removeChild(input);
+      resolve(null);
     });
-  }
+    setTimeout(() => input.click(), 50);
+  });
 }
 
 async function saveFileToDisk(content, filename, handle) {
-  if (handle && 'createWritable' in handle) {
-    try {
-      const writable = await handle.createWritable();
-      await writable.write(content);
-      await writable.close();
-      return handle;
-    } catch(e) {}
-  }
-  if ('showSaveFilePicker' in window) {
-    try {
-      const ext = getExt(filename);
-      const newHandle = await window.showSaveFilePicker({
-        suggestedName: filename,
-        types: [{ description: 'Code file', accept: { 'text/plain': [`.${ext || 'txt'}`] } }]
-      });
-      const writable = await newHandle.createWritable();
-      await writable.write(content);
-      await writable.close();
-      return newHandle;
-    } catch(e) { return null; }
-  } else {
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename; a.click();
-    URL.revokeObjectURL(url);
-    return null;
-  }
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 100);
+  return null;
 }
 
 function GitHubModal({ t, onClose, onConnect }) {
@@ -254,7 +238,7 @@ function CommitModal({ t, onClose, files, onCommit }) {
   );
 }
 
-function AIPanel({ t, currentFile, currentCode, onClose }) {
+function AIPanel({ t, currentFile, currentCode, onClose, onInsertCode }) {
   const [msgs, setMsgs] = useState([
     { role:'ai', text:'👋 Привет! Я AI-ассистент CodeFlow.\n\nМогу:\n• Объяснить и улучшить код (JS, Python и др.)\n• Найти баги и написать тесты\n• Анализировать скриншоты 📸\n• Читать прикреплённые файлы 📎\n\nЧто делаем?' }
   ]);
@@ -328,10 +312,9 @@ function AIPanel({ t, currentFile, currentCode, onClose }) {
       }
       if (q) userContent.push({ type:'text', text:q });
 
-  
       const systemPrompt = `Ты AI-ассистент в редакторе кода CodeFlow IDE.\nТекущий файл: ${currentFile}\nКод:\n\`\`\`\n${currentCode?.substring(0,3000)}\n\`\`\`\nАнализируй скриншоты и файлы. Отвечай кратко, используй блоки кода. Язык ответа — тот, на котором спрашивают.`;
 
-const messages = [
+      const messages = [
         { role: 'system', content: systemPrompt },
         ...history.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content })),
         { role: 'user', content: q }
@@ -345,13 +328,37 @@ const messages = [
       const data = await res.json();
       const reply = data.choices?.[0]?.message?.content || '⚠️ Нет ответа';
       setMsgs(prev => [...prev, { role:'ai', text:reply }]);
-    } catch (e) {
-  setMsgs(prev => [...prev, { role:'ai', text:'⚠️ Ошибка: ' + e.message }]);
+    } catch {
+      setMsgs(prev => [...prev, { role:'ai', text:'⚠️ Ошибка соединения с AI.' }]);
     }
     setLoading(false);
   };
 
   const quick = ['Объясни код','Найди баги','Напиши тесты','Рефакторинг','Добавь типы'];
+
+  const renderAIMessage = (text) => {
+    const parts = text.split(/(```[\s\S]*?```)/g);
+    return parts.map((part, idx) => {
+      if (part.startsWith('```')) {
+        const lines = part.split('\n');
+        const lang = lines[0].replace('```', '').trim();
+        const codeText = lines.slice(1, -1).join('\n');
+        return (
+          <div key={idx} style={{ marginTop:6, marginBottom:6 }}>
+            <div style={{ background:'#0d1117', border:`1px solid ${t.border}`, borderRadius:8, overflow:'hidden' }}>
+              {lang && <div style={{ padding:'4px 10px', fontSize:10, color:t.muted, borderBottom:`1px solid ${t.border}` }}>{lang}</div>}
+              <pre style={{ margin:0, padding:'10px 12px', fontSize:11, lineHeight:1.6, color:t.text, overflowX:'auto', whiteSpace:'pre' }}>{codeText}</pre>
+            </div>
+            <button onClick={() => onInsertCode && onInsertCode(codeText)}
+              style={{ marginTop:4, padding:'5px 14px', background:t.accent, border:'none', borderRadius:6, color:'white', fontSize:11, cursor:'pointer', fontWeight:600 }}>
+              ↙ Вставить в редактор
+            </button>
+          </div>
+        );
+      }
+      return <span key={idx}>{part}</span>;
+    });
+  };
 
   return (
     <div style={{ position:'fixed',inset:0,background:t.surface,zIndex:150,display:'flex',flexDirection:'column',animation:'slideUp 0.2s ease' }}>
@@ -379,7 +386,7 @@ const messages = [
                 style={{ maxWidth:220,maxHeight:160,borderRadius:10,marginBottom:4,border:`1px solid ${t.border}` }}/>
             ))}
             <div style={{ maxWidth:'88%',padding:'10px 14px',background:m.role==='user'?t.accent:t.bg,border:m.role==='ai'?`1px solid ${t.border}`:'none',borderRadius:m.role==='user'?'16px 16px 4px 16px':'4px 16px 16px 16px',color:m.role==='user'?'white':t.text,fontSize:13,lineHeight:1.65,whiteSpace:'pre-wrap',wordBreak:'break-word' }}>
-              {m.text}
+              {m.role==='ai' ? renderAIMessage(m.text) : m.text}
             </div>
           </div>
         ))}
@@ -800,7 +807,7 @@ export default function CodeFlowIDE() {
 
       {showGitHub && <GitHubModal t={t} onClose={()=>setShowGitHub(false)} onConnect={({branch})=>{ setGithubConnected(true); if(branch) setGitBranch(branch); }}/>}
       {showCommit && <CommitModal t={t} files={files} onClose={()=>setShowCommit(false)} onCommit={(msg,sel)=>{ setCommits(prev=>[{msg,time:'только что',files:sel.length},...prev]); setGitChanges(0); }}/>}
-      {showAI && <AIPanel t={t} currentFile={activeFile} currentCode={code} onClose={()=>setShowAI(false)}/>}
+      {showAI && <AIPanel t={t} currentFile={activeFile} currentCode={code} onClose={()=>setShowAI(false)} onInsertCode={(code) => { setCode(code); setFiles(prev=>({...prev,[activeFile]:code})); setUnsaved(prev=>({...prev,[activeFile]:true})); setShowAI(false); }}/>}
     </div>
   );
 }
