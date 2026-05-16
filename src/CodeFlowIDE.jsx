@@ -350,9 +350,8 @@ function AIPanel({ t, currentFile, currentCode, onClose }) {
       const data = await res.json();
       const reply = data.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('') || '⚠️ Нет ответа';
       setMsgs(prev => [...prev, { role:'ai', text:reply }]);
-    } catch {
-      setMsgs(prev => [...prev, { role:'ai', text:'⚠️ Ошибка соединения с AI.' }]);
-    }
+    } catch (e) {
+  setMsgs(prev => [...prev, { role:'ai', text:'⚠️ Ошибка: ' + e.message }]);
     setLoading(false);
   };
 
