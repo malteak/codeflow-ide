@@ -328,7 +328,7 @@ function AIPanel({ t, currentFile, currentCode, onClose }) {
       }
       if (q) userContent.push({ type:'text', text:q });
 
-      const GEMINI_API_KEY = 'AIzaSyDhGsw8pewLm7bc8lsdQioijfNsMhwB174';
+  
       const systemPrompt = `Ты AI-ассистент в редакторе кода CodeFlow IDE.\nТекущий файл: ${currentFile}\nКод:\n\`\`\`\n${currentCode?.substring(0,3000)}\n\`\`\`\nАнализируй скриншоты и файлы. Отвечай кратко, используй блоки кода. Язык ответа — тот, на котором спрашивают.`;
 
       const geminiHistory = history.map(m=>({ role: m.role==='ai'?'model':'user', parts:[{ text: m.content }] }));
@@ -338,7 +338,7 @@ function AIPanel({ t, currentFile, currentCode, onClose }) {
             : { text: c.text })
         : [{ text: q }];
 
-      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      const res = await fetch(`https://gemini-proxy.fishovivan20.workers.dev`, {
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({
