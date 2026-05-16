@@ -331,24 +331,19 @@ function AIPanel({ t, currentFile, currentCode, onClose }) {
   
       const systemPrompt = `Ты AI-ассистент в редакторе кода CodeFlow IDE.\nТекущий файл: ${currentFile}\nКод:\n\`\`\`\n${currentCode?.substring(0,3000)}\n\`\`\`\nАнализируй скриншоты и файлы. Отвечай кратко, используй блоки кода. Язык ответа — тот, на котором спрашивают.`;
 
-      const geminiHistory = history.map(m=>({ role: m.role==='ai'?'model':'user', parts:[{ text: m.content }] }));
-      const lastParts = userContent.length
-        ? userContent.map(c => c.type==='image'
-            ? { inline_data:{ mime_type: c.source.media_type, data: c.source.data } }
-            : { text: c.text })
-        : [{ text: q }];
+const messages = [
+        { role: 'system', content: systemPrompt },
+        ...history.map(m => ({ role: m.role === 'ai' ? 'assistant' : 'user', content: m.content })),
+        { role: 'user', content: q }
+      ];
 
-      const res = await fetch(`https://gemini-proxy.fishovivan20.workers.dev`, {
-        method:'POST',
-        headers:{ 'Content-Type':'application/json' },
-        body: JSON.stringify({
-          system_instruction:{ parts:[{ text: systemPrompt }] },
-          contents: [...geminiHistory, { role:'user', parts: lastParts }],
-          generationConfig:{ maxOutputTokens:1000 }
-        })
+      const res = await fetch('https://gemini-proxy.fishovivan20.workers.dev', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages })
       });
       const data = await res.json();
-      const reply = data.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('') || '⚠️ Нет ответа';
+      const reply = data.choices?.[0]?.message?.content || '⚠️ Нет ответа';
       setMsgs(prev => [...prev, { role:'ai', text:reply }]);
     } catch (e) {
   setMsgs(prev => [...prev, { role:'ai', text:'⚠️ Ошибка: ' + e.message }]);
